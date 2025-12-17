@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#2563eb">
+    <title>Bus Transport Manager</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <i class="fas fa-bus"></i>
+                <span class="logo-text" data-i18n="appName">Bus Manager</span>
+            </div>
+            <div class="header-controls">
+                <button class="icon-btn" id="langToggle" aria-label="Toggle Language">
+                    <i class="fas fa-language"></i>
+                </button>
+                <button class="icon-btn" id="themeToggle" aria-label="Toggle Theme">
+                    <i class="fas fa-moon"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="main-container">
+        <!-- Login Screen -->
+        <div id="loginScreen" class="screen active">
+            <div class="login-container">
+                <div class="login-header">
+                    <i class="fas fa-bus-alt"></i>
+                    <h1 data-i18n="welcomeTitle">Welcome to Bus Manager</h1>
+                    <p data-i18n="welcomeSubtitle">Manage your transport efficiently</p>
+                </div>
+                <form id="loginForm" class="login-form">
+                    <div class="form-group">
+                        <label for="username" data-i18n="username">Username</label>
+                        <input type="text" id="username" required autocomplete="username">
+                    </div>
+                    <div class="form-group">
+                        <label for="password" data-i18n="password">Password</label>
+                        <div class="password-input">
+                            <input type="password" id="password" required autocomplete="current-password">
+                            <button type="button" class="toggle-password" aria-label="Toggle password visibility">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block" data-i18n="login">Login</button>
+                    <div id="loginError" class="error-message"></div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Dashboard Screen -->
+        <div id="dashboardScreen" class="screen">
+            <!-- User Info Card -->
+            <div class="user-info-card">
+                <div class="user-avatar">
+                    <img id="userAvatar" src="" alt="User Avatar">
+                    <button id="changeAvatarBtn" class="avatar-edit-btn" aria-label="Change Avatar">
+                        <i class="fas fa-camera"></i>
+                    </button>
+                </div>
+                <div class="user-details">
+                    <h2 id="userName">User Name</h2>
+                    <span id="userRole" class="user-role">User</span>
+                </div>
+                <button id="logoutBtn" class="btn btn-secondary btn-sm" data-i18n="logout">Logout</button>
+            </div>
+
+            <!-- Warning Alert -->
+            <div id="warningAlert" class="alert alert-warning hidden">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span data-i18n="lowRidesWarning">Warning: You have 2 or fewer rides remaining!</span>
+            </div>
+
+            <!-- Balance Cards -->
+            <div class="balance-cards">
+                <div class="balance-card">
+                    <div class="balance-icon">
+                        <i class="fas fa-wallet"></i>
+                    </div>
+                    <div class="balance-info">
+                        <span class="balance-label" data-i18n="currentBalance">Current Balance</span>
+                        <span class="balance-value" id="currentBalance">0.00</span>
+                    </div>
+                </div>
+                <div class="balance-card">
+                    <div class="balance-icon">
+                        <i class="fas fa-ticket-alt"></i>
+                    </div>
+                    <div class="balance-info">
+                        <span class="balance-label" data-i18n="ridesRemaining">Rides Remaining</span>
+                        <span class="balance-value" id="ridesRemaining">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment Status -->
+            <div class="payment-status-card">
+                <h3 data-i18n="paymentStatus">Payment Status</h3>
+                <div class="status-badge" id="paymentStatusBadge">
+                    <i class="fas fa-check-circle"></i>
+                    <span data-i18n="paid">Paid</span>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="action-buttons" id="actionButtons">
+                <!-- Dynamic buttons based on user role -->
+            </div>
+
+            <!-- Quick Stats (Admin Only) -->
+            <div id="adminStats" class="admin-stats hidden">
+                <h3 data-i18n="quickStats">Quick Statistics</h3>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <i class="fas fa-users"></i>
+                        <span class="stat-value" id="totalUsers">0</span>
+                        <span class="stat-label" data-i18n="totalUsers">Total Users</span>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fas fa-money-bill-wave"></i>
+                        <span class="stat-value" id="totalBalance">0</span>
+                        <span class="stat-label" data-i18n="totalBalance">Total Balance</span>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fas fa-calendar-day"></i>
+                        <span class="stat-value" id="dailyCost">0</span>
+                        <span class="stat-label" data-i18n="dailyCost">Daily Cost</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Transactions -->
+            <div class="transactions-section">
+                <div class="section-header">
+                    <h3 data-i18n="recentTransactions">Recent Transactions</h3>
+                    <button class="btn btn-link" id="viewAllTransactions" data-i18n="viewAll">View All</button>
+                </div>
+                <div id="recentTransactionsList" class="transactions-list">
+                    <!-- Dynamic transaction items -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Transactions History Screen -->
+        <div id="transactionsScreen" class="screen">
+            <div class="screen-header">
+                <button class="btn-back" id="backFromTransactions">
+                    <i class="fas fa-arrow-left"></i>
+                </button>
+                <h2 data-i18n="transactionHistory">Transaction History</h2>
+                <div class="filter-controls">
+                    <select id="transactionFilter" class="filter-select">
+                        <option value="all" data-i18n="allTypes">All Types</option>
+                        <option value="topup" data-i18n="topUp">Top-up</option>
+                        <option value="ride" data-i18n="rideUsed">Ride Used</option>
+                        <option value="extra" data-i18n="extra">Extra</option>
+                        <option value="discount" data-i18n="discount">Discount</option>
+                        <option value="withdraw" data-i18n="withdraw">Withdraw</option>
+                    </select>
+                </div>
+            </div>
+            <div id="allTransactionsList" class="transactions-list">
+                <!-- Dynamic transaction items -->
+            </div>
+        </div>
+
+        <!-- User Management Screen (Admin Only) -->
+        <div id="userManagementScreen" class="screen">
+            <div class="screen-header">
+                <button class="btn-back" id="backFromUserManagement">
+                    <i class="fas fa-arrow-left"></i>
+                </button>
+                <h2 data-i18n="userManagement">User Management</h2>
+                <button class="btn btn-primary btn-sm" id="addUserBtn">
+                    <i class="fas fa-plus"></i>
+                    <span data-i18n="addUser">Add User</span>
+                </button>
+            </div>
+            <div id="usersList" class="users-list">
+                <!-- Dynamic user cards -->
+            </div>
+        </div>
+
+        <!-- Settings Screen -->
+        <div id="settingsScreen" class="screen">
+            <div class="screen-header">
+                <button class="btn-back" id="backFromSettings">
+                    <i class="fas fa-arrow-left"></i>
+                </button>
+                <h2 data-i18n="settings">Settings</h2>
+            </div>
+            <div class="settings-content">
+                <div class="settings-section">
+                    <h3 data-i18n="accountSettings">Account Settings</h3>
+                    <button class="settings-item" id="changePasswordBtn">
+                        <i class="fas fa-key"></i>
+                        <span data-i18n="changePassword">Change Password</span>
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                    <button class="settings-item" id="changeProfilePicBtn">
+                        <i class="fas fa-user-circle"></i>
+                        <span data-i18n="changeProfilePicture">Change Profile Picture</span>
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+                <div class="settings-section" id="adminSettingsSection">
+                    <h3 data-i18n="adminSettings">Admin Settings</h3>
+                    <button class="settings-item" id="setDailyCostBtn">
+                        <i class="fas fa-dollar-sign"></i>
+                        <span data-i18n="setDailyCost">Set Daily Cost</span>
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                    <button class="settings-item" id="cancelDayBtn">
+                        <i class="fas fa-calendar-times"></i>
+                        <span data-i18n="cancelDay">Cancel Day</span>
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cancelled Days Screen -->
+        <div id="cancelledDaysScreen" class="screen">
+            <div class="screen-header">
+                <button class="btn-back" id="backFromCancelledDays">
+                    <i class="fas fa-arrow-left"></i>
+                </button>
+                <h2 data-i18n="cancelledDays">Cancelled Days</h2>
+            </div>
+            <div id="cancelledDaysList" class="cancelled-days-list">
+                <!-- Dynamic cancelled day items -->
+            </div>
+        </div>
+    </main>
+
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav" id="bottomNav">
+        <button class="nav-item active" data-screen="dashboardScreen">
+            <i class="fas fa-home"></i>
+            <span data-i18n="home">Home</span>
+        </button>
+        <button class="nav-item" data-screen="transactionsScreen">
+            <i class="fas fa-history"></i>
+            <span data-i18n="history">History</span>
+        </button>
+        <button class="nav-item" data-screen="cancelledDaysScreen">
+            <i class="fas fa-calendar-times"></i>
+            <span data-i18n="cancelled">Cancelled</span>
+        </button>
+        <button class="nav-item" data-screen="settingsScreen">
+            <i class="fas fa-cog"></i>
+            <span data-i18n="settings">Settings</span>
+        </button>
+    </nav>
+
+    <!-- Modals -->
+    <!-- Add User Modal -->
+    <div id="addUserModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 data-i18n="addNewUser">Add New User</h3>
+                <button class="modal-close" data-modal="addUserModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="addUserForm" class="modal-form">
+                <div class="form-group">
+                    <label for="newUsername" data-i18n="username">Username</label>
+                    <input type="text" id="newUsername" required>
+                </div>
+                <div class="form-group">
+                    <label for="newUserPassword" data-i18n="password">Password</label>
+                    <input type="password" id="newUserPassword" required>
+                </div>
+                <div class="form-group">
+                    <label for="newUserRole" data-i18n="role">Role</label>
+                    <select id="newUserRole" required>
+                        <option value="user" data-i18n="user">User</option>
+                        <option value="guest" data-i18n="guest">Guest</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="newUserBalance" data-i18n="initialBalance">Initial Balance</label>
+                    <input type="number" id="newUserBalance" step="0.01" value="0">
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" data-modal="addUserModal" data-i18n="cancel">Cancel</button>
+                    <button type="submit" class="btn btn-primary" data-i18n="add">Add</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Top-up Modal -->
+    <div id="topupModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 data-i18n="topUpBalance">Top-up Balance</h3>
+                <button class="modal-close" data-modal="topupModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="topupForm" class="modal-form">
+                <div class="form-group">
+                    <label for="topupAmount" data-i18n="amount">Amount</label>
+                    <input type="number" id="topupAmount" step="0.01" min="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label for="topupReason" data-i18n="reason">Reason</label>
+                    <input type="text" id="topupReason" placeholder="Optional">
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" data-modal="topupModal" data-i18n="cancel">Cancel</button>
+                    <button type="submit" class="btn btn-primary" data-i18n="topUp">Top-up</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Extra Money Modal (Admin) -->
+    <div id="extraMoneyModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 data-i18n="addExtraMoney">Add Extra Money</h3>
+                <button class="modal-close" data-modal="extraMoneyModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="extraMoneyForm" class="modal-form">
+                <div class="form-group">
+                    <label for="extraUser" data-i18n="selectUser">Select User</label>
+                    <select id="extraUser" required>
+                        <!-- Dynamic user options -->
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="extraAmount" data-i18n="amount">Amount</label>
+                    <input type="number" id="extraAmount" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label for="extraReason" data-i18n="reason">Reason</label>
+                    <input type="text" id="extraReason" required>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" data-modal="extraMoneyModal" data-i18n="cancel">Cancel</button>
+                    <button type="submit" class="btn btn-primary" data-i18n="add">Add</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Withdraw Modal (Admin) -->
+    <div id="withdrawModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 data-i18n="withdrawMoney">Withdraw Money</h3>
+                <button class="modal-close" data-modal="withdrawModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="withdrawForm" class="modal-form">
+                <div class="form-group">
+                    <label for="withdrawUser" data-i18n="selectUser">Select User</label>
+                    <select id="withdrawUser" required>
+                        <!-- Dynamic user options -->
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="withdrawAmount" data-i18n="amount">Amount</label>
+                    <input type="number" id="withdrawAmount" step="0.01" min="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label for="withdrawReason" data-i18n="reason">Reason</label>
+                    <input type="text" id="withdrawReason" required>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" data-modal="withdrawModal" data-i18n="cancel">Cancel</button>
+                    <button type="submit" class="btn btn-primary" data-i18n="withdraw">Withdraw</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Change Password Modal -->
+    <div id="changePasswordModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 data-i18n="changePassword">Change Password</h3>
+                <button class="modal-close" data-modal="changePasswordModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="changePasswordForm" class="modal-form">
+                <div class="form-group">
+                    <label for="currentPassword" data-i18n="currentPassword">Current Password</label>
+                    <input type="password" id="currentPassword" required>
+                </div>
+                <div class="form-group">
+                    <label for="newPassword" data-i18n="newPassword">New Password</label>
+                    <input type="password" id="newPassword" required minlength="4">
+                </div>
+                <div class="form-group">
+                    <label for="confirmPassword" data-i18n="confirmPassword">Confirm Password</label>
+                    <input type="password" id="confirmPassword" required minlength="4">
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" data-modal="changePasswordModal" data-i18n="cancel">Cancel</button>
+                    <button type="submit" class="btn btn-primary" data-i18n="change">Change</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Set Daily Cost Modal (Admin) -->
+    <div id="dailyCostModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 data-i18n="setDailyCost">Set Daily Cost</h3>
+                <button class="modal-close" data-modal="dailyCostModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="dailyCostForm" class="modal-form">
+                <div class="form-group">
+                    <label for="newDailyCost" data-i18n="dailyCost">Daily Cost</label>
+                    <input type="number" id="newDailyCost" step="0.01" min="0.01" required>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" data-modal="dailyCostModal" data-i18n="cancel">Cancel</button>
+                    <button type="submit" class="btn btn-primary" data-i18n="save">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Cancel Day Modal (Admin) -->
+    <div id="cancelDayModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 data-i18n="cancelDay">Cancel Day</h3>
+                <button class="modal-close" data-modal="cancelDayModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="cancelDayForm" class="modal-form">
+                <div class="form-group">
+                    <label for="cancelDate" data-i18n="date">Date</label>
+                    <input type="date" id="cancelDate" required>
+                </div>
+                <div class="form-group">
+                    <label for="cancelReason" data-i18n="reason">Reason</label>
+                    <textarea id="cancelReason" rows="3" required></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" data-modal="cancelDayModal" data-i18n="cancel">Cancel</button>
+                    <button type="submit" class="btn btn-primary" data-i18n="cancelDay">Cancel Day</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- User Details Modal (Admin) -->
+    <div id="userDetailsModal" class="modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h3 id="userDetailsName">User Details</h3>
+                <button class="modal-close" data-modal="userDetailsModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="user-details-content">
+                <div class="user-details-info">
+                    <div class="info-row">
+                        <span class="info-label" data-i18n="username">Username:</span>
+                        <span class="info-value" id="detailUsername"></span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label" data-i18n="role">Role:</span>
+                        <span class="info-value" id="detailRole"></span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label" data-i18n="balance">Balance:</span>
+                        <span class="info-value" id="detailBalance"></span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label" data-i18n="rides">Rides:</span>
+                        <span class="info-value" id="detailRides"></span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label" data-i18n="paymentStatus">Payment Status:</span>
+                        <span class="info-value" id="detailPaymentStatus"></span>
+                    </div>
+                </div>
+                <div class="user-details-actions">
+                    <button class="btn btn-primary btn-block" id="togglePaymentStatus" data-i18n="togglePayment">Toggle Payment Status</button>
+                    <button class="btn btn-danger btn-block" id="deleteUserBtn" data-i18n="deleteUser">Delete User</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Avatar Selection Modal -->
+    <div id="avatarModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 data-i18n="selectAvatar">Select Avatar</h3>
+                <button class="modal-close" data-modal="avatarModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="avatar-grid" id="avatarGrid">
+                <!-- Dynamic avatar options -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast">
+        <i class="fas fa-check-circle"></i>
+        <span id="toastMessage"></span>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div id="loadingSpinner" class="loading-spinner hidden">
+        <div class="spinner"></div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
+
