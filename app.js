@@ -215,48 +215,58 @@ function hideLoading() {
 }
 
 // ===== Storage Functions =====
-function saveToStorage() {
-    localStorage.setItem('busManagerData', JSON.stringify({
-        users: AppState.users,
-        transactions: AppState.transactions,
-        cancelledDays: AppState.cancelledDays,
-        dailyCost: AppState.dailyCost,
-        currentLanguage: AppState.currentLanguage,
-        currentTheme: AppState.currentTheme
-    }));
+async function saveToStorage() {
+    try {
+        // Save settings
+        await saveSettingsToFirebase({
+            dailyCost: AppState.dailyCost,
+            currentLanguage: AppState.currentLanguage,
+            currentTheme: AppState.currentTheme
+        });
+    } catch (error) {
+        console.error('Error saving to storage:', error);
+        showToast('Error saving data', 'error');
+    }
 }
 
-function loadFromStorage() {
-    const data = localStorage.getItem('busManagerData');
-    if (data) {
-        const parsed = JSON.parse(data);
-        AppState.users = parsed.users || [];
-        AppState.transactions = parsed.transactions || [];
-        AppState.cancelledDays = parsed.cancelledDays || [];
-        AppState.dailyCost = parsed.dailyCost || 5.00;
-        AppState.currentLanguage = parsed.currentLanguage || 'en';
-        AppState.currentTheme = parsed.currentTheme || 'light';
-    }
+async function loadFromStorage() {
+    try {
+        showLoading();
 
-    // Create default admin if no users exist
-    if (AppState.users.length === 0) {
-        AppState.users.push({
-            id: generateId(),
-            username: 'admin',
-            password: 'admin123',
-            role: 'admin',
-            balance: 0,
-            rides: 0,
-            isPaid: true,
-            avatar: AppState.avatars[0],
-            createdAt: new Date().toISOString()
-        });
-        saveToStorage();
+        // Load users
+        AppState.users = await loadUsersFromFirebase();
+
+        // Load transactions
+        AppState.transactions = await loadTransactionsFromFirebase();
+
+        // Load cancelled days
+        AppState.cancelledDays = await loadCancelledDaysFromFirebase();
+
+        // Load settings
+        const settings = await loadSettingsFromFirebase();
+        if (settings) {
+            AppState.dailyCost = settings.dailyCost || 5.00;
+            AppState.currentLanguage = settings.currentLanguage || 'en';
+            AppState.currentTheme = settings.currentTheme || 'light';
+        }
+
+        // Initialize default admin and settings if needed
+        await initializeDefaultAdmin();
+        await initializeDefaultSettings();
+
+        // Reload users after initialization
+        AppState.users = await loadUsersFromFirebase();
+
+        hideLoading();
+    } catch (error) {
+        console.error('Error loading from storage:', error);
+        hideLoading();
+        showToast('Error loading data', 'error');
     }
 }
 
 // ===== User Management =====
-function createUser(username, password, role, initialBalance = 0) {
+async function createUser(username, password, role, initialBalance = 0) {
     const user = {
         id: generateId(),
         username,
@@ -270,31 +280,43 @@ function createUser(username, password, role, initialBalance = 0) {
     };
     AppState.users.push(user);
 
+    // Save to Firebase
+    await saveUserToFirebase(user);
+
     if (initialBalance > 0) {
-        addTransaction(user.id, 'topup', initialBalance, 0, 'Initial balance');
+        await addTransaction(user.id, 'topup', initialBalance, 0, 'Initial balance');
     }
 
-    saveToStorage();
+    await saveToStorage();
     return user;
 }
 
-function deleteUser(userId) {
+async function deleteUser(userId) {
+    const user = AppState.users.find(u => u.id === userId);
+    if (!user) return false;
+
     const index = AppState.users.findIndex(u => u.id === userId);
     if (index !== -1) {
         AppState.users.splice(index, 1);
         // Remove user's transactions
         AppState.transactions = AppState.transactions.filter(t => t.userId !== userId);
-        saveToStorage();
+
+        // Delete from Firebase
+        await deleteUserFromFirebase(user.username);
+        await saveToStorage();
         return true;
     }
     return false;
 }
 
-function updateUser(userId, updates) {
+async function updateUser(userId, updates) {
     const user = AppState.users.find(u => u.id === userId);
     if (user) {
         Object.assign(user, updates);
-        saveToStorage();
+
+        // Save to Firebase
+        await saveUserToFirebase(user);
+        await saveToStorage();
         return user;
     }
     return null;
@@ -309,13 +331,14 @@ function authenticateUser(username, password) {
 }
 
 // ===== Transaction Management =====
-function addTransaction(userId, type, amount, rides, reason = '') {
+async function addTransaction(userId, type, amount, rides, reason = '') {
     const user = getUserById(userId);
     if (!user) return null;
 
     const transaction = {
         id: generateId(),
         userId,
+        username: user.username,
         type,
         amount: parseFloat(amount),
         rides: parseInt(rides),
@@ -351,7 +374,12 @@ function addTransaction(userId, type, amount, rides, reason = '') {
     transaction.ridesAfter = user.rides;
 
     AppState.transactions.unshift(transaction);
-    saveToStorage();
+
+    // Save to Firebase
+    await saveTransactionToFirebase(transaction);
+    await saveUserToFirebase(user);
+    await saveToStorage();
+
     return transaction;
 }
 
@@ -371,7 +399,7 @@ function getAllTransactions(filter = 'all') {
 }
 
 // ===== Cancelled Days Management =====
-function cancelDay(date, reason) {
+async function cancelDay(date, reason) {
     const cancelledDay = {
         id: generateId(),
         date,
@@ -379,7 +407,11 @@ function cancelDay(date, reason) {
         createdAt: new Date().toISOString()
     };
     AppState.cancelledDays.unshift(cancelledDay);
-    saveToStorage();
+
+    // Save to Firebase
+    await saveCancelledDayToFirebase(cancelledDay);
+    await saveToStorage();
+
     return cancelledDay;
 }
 
@@ -727,8 +759,11 @@ function showUserDetails(userId) {
     openModal('userDetailsModal');
 }
 
-function selectAvatar(avatarUrl) {
-    updateUser(AppState.currentUser.id, { avatar: avatarUrl });
+async function selectAvatar(avatarUrl) {
+    showLoading();
+    await updateUser(AppState.currentUser.id, { avatar: avatarUrl });
+    hideLoading();
+
     AppState.currentUser.avatar = avatarUrl;
     renderDashboard();
     closeModal('avatarModal');
@@ -769,7 +804,7 @@ function handleLogout() {
     document.getElementById('loginForm').reset();
 }
 
-function handleAddUser(e) {
+async function handleAddUser(e) {
     e.preventDefault();
 
     const username = document.getElementById('newUsername').value;
@@ -783,7 +818,10 @@ function handleAddUser(e) {
         return;
     }
 
-    createUser(username, password, role, balance);
+    showLoading();
+    await createUser(username, password, role, balance);
+    hideLoading();
+
     closeModal('addUserModal');
     renderUsersList();
     renderAdminStats();
@@ -791,7 +829,7 @@ function handleAddUser(e) {
     e.target.reset();
 }
 
-function handleTopup(e) {
+async function handleTopup(e) {
     e.preventDefault();
 
     const amount = parseFloat(document.getElementById('topupAmount').value);
@@ -802,21 +840,27 @@ function handleTopup(e) {
         return;
     }
 
-    addTransaction(AppState.currentUser.id, 'topup', amount, 0, reason);
+    showLoading();
+    await addTransaction(AppState.currentUser.id, 'topup', amount, 0, reason);
+    hideLoading();
+
     closeModal('topupModal');
     renderDashboard();
     showToast('Balance topped up successfully!');
     e.target.reset();
 }
 
-function handleExtraMoney(e) {
+async function handleExtraMoney(e) {
     e.preventDefault();
 
     const userId = document.getElementById('extraUser').value;
     const amount = parseFloat(document.getElementById('extraAmount').value);
     const reason = document.getElementById('extraReason').value;
 
-    addTransaction(userId, 'extra', amount, 0, reason);
+    showLoading();
+    await addTransaction(userId, 'extra', amount, 0, reason);
+    hideLoading();
+
     closeModal('extraMoneyModal');
     renderDashboard();
     renderUsersList();
@@ -824,7 +868,7 @@ function handleExtraMoney(e) {
     e.target.reset();
 }
 
-function handleWithdraw(e) {
+async function handleWithdraw(e) {
     e.preventDefault();
 
     const userId = document.getElementById('withdrawUser').value;
@@ -837,7 +881,10 @@ function handleWithdraw(e) {
         return;
     }
 
-    addTransaction(userId, 'withdraw', amount, 0, reason);
+    showLoading();
+    await addTransaction(userId, 'withdraw', amount, 0, reason);
+    hideLoading();
+
     closeModal('withdrawModal');
     renderDashboard();
     renderUsersList();
@@ -845,7 +892,7 @@ function handleWithdraw(e) {
     e.target.reset();
 }
 
-function handleChangePassword(e) {
+async function handleChangePassword(e) {
     e.preventDefault();
 
     const currentPassword = document.getElementById('currentPassword').value;
@@ -867,14 +914,17 @@ function handleChangePassword(e) {
         return;
     }
 
-    updateUser(AppState.currentUser.id, { password: newPassword });
+    showLoading();
+    await updateUser(AppState.currentUser.id, { password: newPassword });
+    hideLoading();
+
     AppState.currentUser.password = newPassword;
     closeModal('changePasswordModal');
     showToast('Password changed successfully!');
     e.target.reset();
 }
 
-function handleSetDailyCost(e) {
+async function handleSetDailyCost(e) {
     e.preventDefault();
 
     const newCost = parseFloat(document.getElementById('newDailyCost').value);
@@ -885,44 +935,57 @@ function handleSetDailyCost(e) {
     }
 
     AppState.dailyCost = newCost;
-    saveToStorage();
+
+    showLoading();
+    await saveToStorage();
+    hideLoading();
+
     closeModal('dailyCostModal');
     renderAdminStats();
     showToast('Daily cost updated successfully!');
 }
 
-function handleCancelDay(e) {
+async function handleCancelDay(e) {
     e.preventDefault();
 
     const date = document.getElementById('cancelDate').value;
     const reason = document.getElementById('cancelReason').value;
 
-    cancelDay(date, reason);
+    showLoading();
+    await cancelDay(date, reason);
+    hideLoading();
+
     closeModal('cancelDayModal');
     renderCancelledDays();
     showToast('Day cancelled successfully!');
     e.target.reset();
 }
 
-function handleTogglePaymentStatus() {
+async function handleTogglePaymentStatus() {
     const modal = document.getElementById('userDetailsModal');
     const userId = modal.getAttribute('data-user-id');
     const user = getUserById(userId);
 
     if (user) {
-        updateUser(userId, { isPaid: !user.isPaid });
+        showLoading();
+        await updateUser(userId, { isPaid: !user.isPaid });
+        hideLoading();
+
         showUserDetails(userId);
         renderUsersList();
         showToast('Payment status updated!');
     }
 }
 
-function handleDeleteUser() {
+async function handleDeleteUser() {
     const modal = document.getElementById('userDetailsModal');
     const userId = modal.getAttribute('data-user-id');
 
     if (confirm('Are you sure you want to delete this user?')) {
-        deleteUser(userId);
+        showLoading();
+        await deleteUser(userId);
+        hideLoading();
+
         closeModal('userDetailsModal');
         renderUsersList();
         renderAdminStats();
@@ -936,10 +999,10 @@ function handleTransactionFilter(e) {
 }
 
 // ===== Initialization =====
-function initializeApp() {
+async function initializeApp() {
     console.log('App initializing...'); // Debug log
 
-    loadFromStorage();
+    await loadFromStorage();
     updateTheme();
     updateLanguage();
 
@@ -960,9 +1023,9 @@ function initializeApp() {
     document.getElementById('logoutBtn').addEventListener('click', handleLogout);
 
     // Language toggle
-    document.getElementById('langToggle').addEventListener('click', () => {
+    document.getElementById('langToggle').addEventListener('click', async () => {
         AppState.currentLanguage = AppState.currentLanguage === 'en' ? 'ar' : 'en';
-        saveToStorage();
+        await saveToStorage();
         updateLanguage();
         if (AppState.currentUser) {
             renderDashboard();
@@ -973,9 +1036,9 @@ function initializeApp() {
     });
 
     // Theme toggle
-    document.getElementById('themeToggle').addEventListener('click', () => {
+    document.getElementById('themeToggle').addEventListener('click', async () => {
         AppState.currentTheme = AppState.currentTheme === 'light' ? 'dark' : 'light';
-        saveToStorage();
+        await saveToStorage();
         updateTheme();
     });
 
